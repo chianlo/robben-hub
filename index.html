@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <title>羅本家工作台</title>
+  <meta name="theme-color" content="#8B4513">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="羅本家">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon-192.png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <style>
+    :root { --primary: #8B4513; --bg: #FDF5E6; --ok: #2E7D32; --warn: #E65100; --err: #C62828; }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { margin: 0; height: 100%; }
+    body { font-family: -apple-system, "PingFang TC", "Noto Sans TC", sans-serif; background: var(--bg); color: #333;
+           padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom); overscroll-behavior: none; }
+    .wrap { max-width: 640px; margin: 0 auto; padding: 16px; }
+
+    /* 頂部時間 */
+    .hero { background: var(--primary); color: #FDF5E6; border-radius: 16px; padding: 18px; margin-bottom: 16px; position: relative; }
+    .hero .shop { font-size: 14px; opacity: .85; }
+    .hero .time { font-size: 44px; font-weight: bold; letter-spacing: 1px; margin: 4px 0 0; font-variant-numeric: tabular-nums; }
+    .hero .date { font-size: 17px; opacity: .95; }
+    .gear { position: absolute; right: 12px; top: 10px; background: none; border: none; color: #FDF5E6; font-size: 22px; opacity: .8; }
+
+    /* 工具按鈕 */
+    .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
+    .tile { background: white; border: none; border-radius: 14px; padding: 16px 6px; box-shadow: 0 3px 6px rgba(0,0,0,.08);
+            display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 15px; font-weight: bold; color: #444; }
+    .tile .ic { font-size: 34px; }
+    .tile:active { transform: scale(.96); }
+
+    .card { background: white; border-radius: 14px; padding: 15px; box-shadow: 0 3px 6px rgba(0,0,0,.08); margin-bottom: 16px; }
+    .card-title { display: flex; justify-content: space-between; align-items: center; font-weight: bold; color: var(--primary); margin-bottom: 8px; font-size: 16px; }
+    .refresh { border: none; background: none; color: var(--primary); font-size: 14px; }
+    .alert-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid #f0e9df; }
+    .alert-row:last-child { border-bottom: none; }
+    .alert-row .nm { font-weight: bold; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .alert-row .sub { font-size: 12px; color: #999; margin-top: 2px; }
+    .alert-row .main { min-width: 0; flex: 1; }
+    .up { background: #FFEBEE; color: var(--err); font-size: 13px; font-weight: bold; padding: 3px 8px; border-radius: 10px; white-space: nowrap; }
+    .muted { color: #999; font-size: 13px; }
+    .more { display: block; text-align: center; margin-top: 8px; color: var(--primary); font-size: 14px; background: none; border: none; width: 100%; }
+
+    /* 工具視窗（內嵌） */
+    .viewer { position: fixed; inset: 0; background: var(--bg); z-index: 50; display: none; flex-direction: column; }
+    .viewer.on { display: flex; }
+    .vbar { display: flex; align-items: center; justify-content: space-between; background: var(--primary); color: #FDF5E6;
+            padding: calc(env(safe-area-inset-top) + 8px) 8px 8px; }
+    .vbar button { background: none; border: none; color: #FDF5E6; font-size: 16px; padding: 6px 10px; }
+    .vbar .vt { font-weight: bold; font-size: 16px; }
+    .viewer iframe { flex: 1; width: 100%; border: none; background: white; }
+    .vloading { position: absolute; top: 50%; left: 0; right: 0; text-align: center; color: #888; pointer-events: none; }
+
+    /* 設定 */
+    .modal { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 60; display: none; align-items: flex-end; justify-content: center; }
+    .modal.on { display: flex; }
+    .sheet { background: var(--bg); width: 100%; max-width: 640px; max-height: 90vh; overflow-y: auto; border-radius: 16px 16px 0 0;
+             padding: 18px 16px calc(env(safe-area-inset-bottom) + 24px); }
+    .sheet h3 { margin: 0 0 6px; color: var(--primary); }
+    label { display: block; font-size: 13px; color: #666; margin: 12px 0 4px; }
+    input { width: 100%; padding: 11px; border: 1px solid #ccc; border-radius: 8px; font-size: 15px; background: white; }
+    .btn { width: 100%; padding: 13px; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; margin-top: 12px; }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-outline { background: white; color: var(--primary); border: 2px solid var(--primary); }
+    .welcome { text-align: center; padding: 30px 10px; }
+    .welcome .ic { font-size: 60px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="hero">
+      <button class="gear" onclick="openSettings()">⚙️</button>
+      <div class="shop">羅本家咖哩 信義店</div>
+      <div class="time" id="clock">--:--:--</div>
+      <div class="date" id="date"></div>
+    </div>
+
+    <div class="tiles">
+      <button class="tile" onclick="openTool('inv')"><span class="ic">📦</span>庫存盤點</button>
+      <button class="tile" onclick="openTool('cost')"><span class="ic">📷</span>進貨登記</button>
+      <button class="tile" onclick="openTool('order')"><span class="ic">🛒</span>叫貨系統</button>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span>⚠️ 近期漲價警示</span><button class="refresh" onclick="loadAlerts(true)">↻ 更新</button></div>
+      <div id="alerts"><p class="muted">載入中…</p></div>
+    </div>
+  </div>
+
+  <!-- 工具內嵌視窗 -->
+  <div class="viewer" id="viewer">
+    <div class="vbar">
+      <button onclick="closeTool()">‹ 首頁</button>
+      <span class="vt" id="vTitle"></span>
+      <button onclick="openExternal()">↗</button>
+    </div>
+    <div class="vloading" id="vLoading">載入中…</div>
+    <iframe id="vFrame" allow="camera; clipboard-write"></iframe>
+  </div>
+
+  <!-- 設定 -->
+  <div class="modal" id="modal" onclick="if(event.target===this) closeSettings()">
+    <div class="sheet" id="sheet"></div>
+  </div>
+
+  <script>
+    // ===== 設定（各工具網址存在這支手機裡，不寫在公開程式碼中）=====
+    const TOOLS = {
+      inv:   { title: '庫存盤點', hint: '庫存盤點 Apps Script 的 /exec 網址' },
+      cost:  { title: '進貨登記', hint: '進貨／成本 Apps Script 的 /exec 網址（含 ?key=密碼）' },
+      order: { title: '叫貨系統', hint: '叫貨系統 GitHub Pages 網址' }
+    };
+    const CFG_KEY = 'robbenHubConfig';
+    let cfg = {};
+    try { cfg = JSON.parse(localStorage.getItem(CFG_KEY) || '{}'); } catch (e) { cfg = {}; }
+
+    // 從「設定連結」匯入：網址 #setup=xxxx
+    (function importFromHash() {
+      const m = location.hash.match(/#setup=(.+)$/);
+      if (!m) return;
+      try {
+        const data = JSON.parse(decodeURIComponent(escape(atob(decodeURIComponent(m[1])))));
+        cfg = Object.assign({}, cfg, data);
+        localStorage.setItem(CFG_KEY, JSON.stringify(cfg));
+        history.replaceState(null, '', location.pathname);
+        setTimeout(() => alert('✅ 已完成設定，可以開始使用了！\n\n記得「加入主畫面」，之後從主畫面圖示開啟。'), 300);
+      } catch (e) { alert('設定連結格式不正確'); }
+    })();
+
+    // ===== 時鐘 =====
+    const WEEK = ['日', '一', '二', '三', '四', '五', '六'];
+    function tick() {
+      const d = new Date();
+      const p = n => String(n).padStart(2, '0');
+      document.getElementById('clock').textContent = `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+      document.getElementById('date').textContent = `${d.getFullYear()} 年 ${d.getMonth() + 1} 月 ${d.getDate()} 日（${WEEK[d.getDay()]}）`;
+    }
+    tick(); setInterval(tick, 1000);
+
+    // ===== 漲價警示 =====
+    function esc(s) {
+      return String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+    }
+    const fmt = (n, d = 0) => n === null || n === undefined ? '-' : Number(n).toLocaleString('en-US', { maximumFractionDigits: d });
+
+    function renderAlerts(data, note) {
+      const box = document.getElementById('alerts');
+      if (!data) { box.innerHTML = `<p class="muted">${note || '尚無資料'}</p>`; return; }
+      const list = data.alerts || [];
+      const time = new Date(data.fetchedAt);
+      const stamp = `<p class="muted" style="margin:8px 0 0;">門檻 ${data.alertPct}%｜更新於 ${time.getMonth() + 1}/${time.getDate()} ${String(time.getHours()).padStart(2,'0')}:${String(time.getMinutes()).padStart(2,'0')}${note ? '｜' + note : ''}</p>`;
+      if (!list.length) { box.innerHTML = '<p>目前沒有漲幅過高的品項 👍</p>' + stamp; return; }
+      const top = list.slice(0, 6);
+      box.innerHTML = top.map(a => `
+        <div class="alert-row">
+          <div class="main"><div class="nm">${esc(a.name)}</div>
+            <div class="sub">${esc(a.vendor)}｜${fmt(a.prevAvg, 1)} → ${fmt(a.latest, 1)}／${esc(a.unit)}｜${esc(a.date)}</div></div>
+          <span class="up">▲ ${fmt(a.changePct, 1)}%</span>
+        </div>`).join('') +
+        (list.length > top.length ? `<button class="more" onclick="openTool('cost')">還有 ${list.length - top.length} 項，到進貨登記 → 價格分頁查看</button>` : '') + stamp;
+    }
+
+    async function loadAlerts(force) {
+      // 先顯示上次的資料，避免空白
+      let cached = null;
+      try { cached = JSON.parse(localStorage.getItem('robbenAlerts') || 'null'); } catch (e) {}
+      if (cached) renderAlerts(cached);
+      if (!cfg.cost) { renderAlerts(null, '請先按右上角 ⚙️ 完成設定'); return; }
+      if (!force && cached && Date.now() - cached.fetchedAt < 10 * 60 * 1000) return; // 10 分鐘內不重抓
+
+      try {
+        if (!cached) document.getElementById('alerts').innerHTML = '<p class="muted">載入中…</p>';
+        const url = cfg.cost + (cfg.cost.includes('?') ? '&' : '?') + 'action=alerts';
+        const res = await fetch(url);
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+        data.fetchedAt = Date.now();
+        try { localStorage.setItem('robbenAlerts', JSON.stringify(data)); } catch (e) {}
+        renderAlerts(data);
+      } catch (e) {
+        renderAlerts(cached, '⚠️ 更新失敗，顯示上次資料');
+        if (!cached) document.getElementById('alerts').innerHTML = `<p class="muted">讀取失敗：${esc(e.message)}</p>`;
+      }
+    }
+
+    // ===== 開啟工具（內嵌在 APP 裡）=====
+    let currentUrl = '';
+    function openTool(id) {
+      const url = cfg[id];
+      if (!url) { alert(`還沒設定「${TOOLS[id].title}」的網址，請按右上角 ⚙️ 設定`); return; }
+      currentUrl = url;
+      document.getElementById('vTitle').textContent = TOOLS[id].title;
+      document.getElementById('vLoading').style.display = 'block';
+      const f = document.getElementById('vFrame');
+      f.onload = () => document.getElementById('vLoading').style.display = 'none';
+      f.src = url;
+      document.getElementById('viewer').classList.add('on');
+    }
+    function closeTool() {
+      document.getElementById('viewer').classList.remove('on');
+      document.getElementById('vFrame').src = 'about:blank';
+      loadAlerts(); // 回首頁時順便更新（進貨後可能有新警示）
+    }
+    function openExternal() { if (currentUrl) window.open(currentUrl, '_blank'); }
+
+    // ===== 設定畫面 =====
+    function openSettings() {
+      document.getElementById('sheet').innerHTML = `
+        <h3>⚙️ 工作台設定</h3>
+        <p class="muted" style="margin-top:0;">網址只存在這支手機上。設定好之後，可以產生「設定連結」傳給其他手機，一點就完成設定。</p>
+        ${Object.keys(TOOLS).map(id => `
+          <label>${TOOLS[id].title}<br><span class="muted">${TOOLS[id].hint}</span></label>
+          <input id="cfg-${id}" value="${esc(cfg[id] || '')}" placeholder="https://..." autocapitalize="off" autocorrect="off">`).join('')}
+        <button class="btn btn-primary" onclick="saveSettings()">💾 儲存</button>
+        <button class="btn btn-outline" onclick="copySetupLink()">🔗 複製設定連結（給其他手機）</button>
+        <button class="btn btn-outline" onclick="closeSettings()">關閉</button>`;
+      document.getElementById('modal').classList.add('on');
+    }
+    function closeSettings() { document.getElementById('modal').classList.remove('on'); }
+    function saveSettings() {
+      Object.keys(TOOLS).forEach(id => { cfg[id] = document.getElementById('cfg-' + id).value.trim(); });
+      localStorage.setItem(CFG_KEY, JSON.stringify(cfg));
+      localStorage.removeItem('robbenAlerts');
+      closeSettings();
+      loadAlerts(true);
+    }
+    async function copySetupLink() {
+      const code = encodeURIComponent(btoa(unescape(encodeURIComponent(JSON.stringify(cfg)))));
+      const link = location.origin + location.pathname + '#setup=' + code;
+      try { await navigator.clipboard.writeText(link); alert('✅ 已複製設定連結\n\n用 LINE 私訊傳給店裡手機，用 Safari／Chrome 打開一次就完成設定。\n⚠️ 連結含有系統網址與密碼，請勿貼到群組或公開地方。'); }
+      catch (e) { prompt('請長按複製這個設定連結：', link); }
+    }
+
+    // ===== 啟動 =====
+    if (!cfg.inv && !cfg.cost && !cfg.order) {
+      document.getElementById('alerts').innerHTML = '<div class="welcome"><div class="ic">👋</div><p>歡迎使用羅本家工作台<br>請先按右上角 ⚙️ 完成設定</p></div>';
+    } else loadAlerts();
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) loadAlerts(); });
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+  </script>
+</body>
+</html>
