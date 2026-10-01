@@ -308,7 +308,7 @@
       const btn = document.getElementById('reportBtn'), st = document.getElementById('reportSt');
       btn.disabled = true; st.textContent = '抓取業績中…';
       try {
-        const url = cfg.report + (cfg.report.includes('?') ? '&' : '?') + 'format=json';
+        const url = cfg.report + (cfg.report.includes('?') ? '&' : '?') + 'format=json&action=send';
         const res = await fetch(url, { redirect: 'follow' });
         const text = await res.text();
         let r;
