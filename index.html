@@ -27,12 +27,31 @@
     .hero .date { font-size: 17px; opacity: .95; }
     .gear { position: absolute; right: 12px; top: 10px; background: none; border: none; color: #FDF5E6; font-size: 22px; opacity: .8; }
 
+    /* 即時營業額（只在有設定業績匯報網址的手機顯示）*/
+    .live { display: none; }
+    .live.on { display: block; }
+    .live .big { font-size: 34px; font-weight: bold; color: var(--primary); font-variant-numeric: tabular-nums; }
+    .live .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px; }
+    .live .grid div { background: #FAF3E8; border-radius: 8px; padding: 8px; text-align: center; }
+    .live .grid span { display: block; font-size: 12px; color: #888; }
+    .live .grid b { font-size: 16px; }
+    .bar { height: 8px; background: #f0e9df; border-radius: 4px; overflow: hidden; margin-top: 10px; }
+    .bar i { display: block; height: 100%; background: var(--primary); border-radius: 4px; }
+
     /* 工具按鈕 */
-    .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
+    .tiles { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 16px; }
     .tile { background: white; border: none; border-radius: 14px; padding: 16px 6px; box-shadow: 0 3px 6px rgba(0,0,0,.08);
             display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 15px; font-weight: bold; color: #444; }
     .tile .ic { font-size: 34px; }
     .tile:active { transform: scale(.96); }
+    .tile:disabled { opacity: .6; }
+    .tile .st { font-size: 12px; font-weight: normal; color: #999; min-height: 15px; }
+
+    /* 提示訊息 */
+    .toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 24px); transform: translateX(-50%);
+             background: #333; color: white; padding: 12px 18px; border-radius: 12px; font-size: 15px; z-index: 70;
+             max-width: 90%; text-align: center; line-height: 1.5; display: none; box-shadow: 0 4px 12px rgba(0,0,0,.25); }
+    .toast.on { display: block; }
 
     .card { background: white; border-radius: 14px; padding: 15px; box-shadow: 0 3px 6px rgba(0,0,0,.08); margin-bottom: 16px; }
     .card-title { display: flex; justify-content: space-between; align-items: center; font-weight: bold; color: var(--primary); margin-bottom: 8px; font-size: 16px; }
@@ -80,10 +99,16 @@
       <div class="date" id="date"></div>
     </div>
 
+    <div class="card live" id="liveCard">
+      <div class="card-title"><span>💰 今日營業額</span><button class="refresh" onclick="loadLive(true)">↻ 更新</button></div>
+      <div id="liveBody"><p class="muted">載入中…</p></div>
+    </div>
+
     <div class="tiles">
       <button class="tile" onclick="openTool('inv')"><span class="ic">📦</span>庫存盤點</button>
       <button class="tile" onclick="openTool('cost')"><span class="ic">📷</span>進貨登記</button>
       <button class="tile" onclick="openTool('order')"><span class="ic">🛒</span>叫貨系統</button>
+      <button class="tile" id="reportBtn" onclick="sendReport()"><span class="ic">📊</span>業績匯報<span class="st" id="reportSt">傳送到 Discord</span></button>
     </div>
 
     <div class="card">
@@ -103,6 +128,8 @@
     <iframe id="vFrame" allow="camera; clipboard-write"></iframe>
   </div>
 
+  <div class="toast" id="toast"></div>
+
   <!-- 設定 -->
   <div class="modal" id="modal" onclick="if(event.target===this) closeSettings()">
     <div class="sheet" id="sheet"></div>
@@ -113,7 +140,8 @@
     const TOOLS = {
       inv:   { title: '庫存盤點', hint: '庫存盤點 Apps Script 的 /exec 網址' },
       cost:  { title: '進貨登記', hint: '進貨／成本 Apps Script 的 /exec 網址（含 ?key=密碼）' },
-      order: { title: '叫貨系統', hint: '叫貨系統 GitHub Pages 網址' }
+      order: { title: '叫貨系統', hint: '叫貨系統 GitHub Pages 網址' },
+      report:{ title: '業績匯報', hint: '業績匯報 Apps Script 的 /exec 網址（含 ?key=密碼）' }
     };
     const CFG_KEY = 'robbenHubConfig';
     let cfg = {};
@@ -176,8 +204,11 @@
       try {
         if (!cached) document.getElementById('alerts').innerHTML = '<p class="muted">載入中…</p>';
         const url = cfg.cost + (cfg.cost.includes('?') ? '&' : '?') + 'action=alerts';
-        const res = await fetch(url);
-        const data = await res.json();
+        const res = await fetch(url, { redirect: 'follow' });
+        const text = await res.text();
+        let data;
+        try { data = JSON.parse(text); }
+        catch (e) { throw new Error('收到的不是資料格式。請確認進貨 Apps Script 已更新成新版，並在「管理部署作業」部署「新版本」'); }
         if (data.error) throw new Error(data.error);
         data.fetchedAt = Date.now();
         try { localStorage.setItem('robbenAlerts', JSON.stringify(data)); } catch (e) {}
@@ -188,7 +219,7 @@
       }
     }
 
-    // ===== 開啟工具（內嵌在 APP 裡）=====
+    // ===== 開啟工具（內嵌在 APP 裡，右上角 ↗ 可改用瀏覽器開啟）=====
     let currentUrl = '';
     function openTool(id) {
       const url = cfg[id];
@@ -204,9 +235,97 @@
     function closeTool() {
       document.getElementById('viewer').classList.remove('on');
       document.getElementById('vFrame').src = 'about:blank';
-      loadAlerts(); // 回首頁時順便更新（進貨後可能有新警示）
+      loadLive(); loadAlerts();
     }
-    function openExternal() { if (currentUrl) window.open(currentUrl, '_blank'); }
+    function openExternal() { if (currentUrl) location.href = currentUrl; }
+
+    // ===== 即時營業額 =====
+    let liveFetching = false, liveLastTry = 0;
+    function agoText(t) {
+      const m = Math.floor((Date.now() - t) / 60000);
+      return m < 1 ? '剛剛更新' : m < 60 ? `${m} 分鐘前更新` : `${Math.floor(m / 60)} 小時前更新`;
+    }
+    function renderLive(d, note) {
+      const box = document.getElementById('liveBody');
+      if (!d) { box.innerHTML = `<p class="muted">${note || '載入中…'}</p>`; return; }
+      const pct = d.pct === null || d.pct === undefined ? null : d.pct;
+      box.innerHTML = `
+        <div class="big">NT$${fmt(d.total)}</div>
+        <div class="grid">
+          <div><span>來客數</span><b>${fmt(d.persons)}</b></div>
+          <div><span>客單價</span><b>${fmt(d.avg)}</b></div>
+          <div><span>訂單數</span><b>${fmt(d.orders)}</b></div>
+        </div>
+        ${d.monthTotal !== null && d.monthTotal !== undefined ? `
+          <div style="margin-top:12px;font-size:14px;">本月累計 <b>NT$${fmt(d.monthTotal)}</b>／目標 ${fmt(d.target)}（${pct}%）</div>
+          <div class="bar"><i style="width:${Math.min(100, pct || 0)}%"></i></div>` : ''}
+        <p class="muted" style="margin:8px 0 0;" id="liveAgo" data-t="${d.updated}">${agoText(d.updated)}${note ? '｜' + note : ''}</p>`;
+    }
+    async function loadLive(force) {
+      const card = document.getElementById('liveCard');
+      if (!cfg.report) { card.classList.remove('on'); return; }   // 沒設定業績匯報網址的手機（員工）不顯示
+      card.classList.add('on');
+
+      let cached = null;
+      try { cached = JSON.parse(localStorage.getItem('robbenLive') || 'null'); } catch (e) {}
+      const today = new Date().toDateString();
+      if (cached && new Date(cached.updated).toDateString() !== today) cached = null; // 不顯示昨天的數字
+      if (cached) renderLive(cached); else renderLive(null);
+
+      if (liveFetching) return;
+      if (!force && Date.now() - liveLastTry < 60 * 1000) return;   // 1 分鐘內不重複抓
+      liveFetching = true; liveLastTry = Date.now();
+      try {
+        const url = cfg.report + (cfg.report.includes('?') ? '&' : '?') + 'format=json&action=live';
+        const res = await fetch(url, { redirect: 'follow' });
+        const text = await res.text();
+        let d;
+        try { d = JSON.parse(text); }
+        catch (e) { throw new Error('業績匯報 Apps Script 需部署新版本，且存取權為「所有人」'); }
+        if (!d.ok) throw new Error(d.error || '讀取失敗');
+        try { localStorage.setItem('robbenLive', JSON.stringify(d)); } catch (e) {}
+        renderLive(d);
+      } catch (e) {
+        if (cached) renderLive(cached, '⚠️ 更新失敗');
+        else renderLive(null, '讀取失敗：' + esc(e.message));
+      } finally { liveFetching = false; }
+    }
+    setInterval(() => {   // 每分鐘更新「x 分鐘前」的文字
+      const el = document.getElementById('liveAgo');
+      if (el && el.dataset.t && !el.textContent.includes('⚠️')) el.textContent = agoText(Number(el.dataset.t));
+    }, 60000);
+
+    // ===== 業績匯報：背景呼叫，直接發到 Discord，不開網頁 =====
+    let toastTimer = null;
+    function toast(msg, ms) {
+      const t = document.getElementById('toast');
+      t.innerHTML = msg; t.classList.add('on');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => t.classList.remove('on'), ms || 4000);
+    }
+    async function sendReport() {
+      if (!cfg.report) { alert('還沒設定「業績匯報」的網址，請按右上角 ⚙️ 設定'); return; }
+      const btn = document.getElementById('reportBtn'), st = document.getElementById('reportSt');
+      btn.disabled = true; st.textContent = '抓取業績中…';
+      try {
+        const url = cfg.report + (cfg.report.includes('?') ? '&' : '?') + 'format=json';
+        const res = await fetch(url, { redirect: 'follow' });
+        const text = await res.text();
+        let r;
+        try { r = JSON.parse(text); }
+        catch (e) { throw new Error('收到的不是資料格式。請確認業績匯報 Apps Script 已部署新版本，且存取權為「所有人」'); }
+        if (!r.ok) throw new Error(r.error || '匯報失敗');
+        st.textContent = '✅ 已送出';
+        loadLive(true);
+        toast(`✅ 已傳送到 Discord<br>今日營業額 NT$${fmt(r.total)}｜本月累計 NT$${fmt(r.monthTotal)}`, 5000);
+      } catch (e) {
+        st.textContent = '❌ 失敗';
+        toast('❌ ' + esc(e.message), 6000);
+      } finally {
+        btn.disabled = false;
+        setTimeout(() => st.textContent = '傳送到 Discord', 5000);
+      }
+    }
 
     // ===== 設定畫面 =====
     function openSettings() {
@@ -217,7 +336,8 @@
           <label>${TOOLS[id].title}<br><span class="muted">${TOOLS[id].hint}</span></label>
           <input id="cfg-${id}" value="${esc(cfg[id] || '')}" placeholder="https://..." autocapitalize="off" autocorrect="off">`).join('')}
         <button class="btn btn-primary" onclick="saveSettings()">💾 儲存</button>
-        <button class="btn btn-outline" onclick="copySetupLink()">🔗 複製設定連結（給其他手機）</button>
+        <button class="btn btn-outline" onclick="copySetupLink(false)">🔗 複製員工用設定連結（不含業績）</button>
+        <button class="btn btn-outline" onclick="copySetupLink(true)">🔗 複製完整設定連結（含業績，給自己的其他裝置）</button>
         <button class="btn btn-outline" onclick="closeSettings()">關閉</button>`;
       document.getElementById('modal').classList.add('on');
     }
@@ -226,21 +346,24 @@
       Object.keys(TOOLS).forEach(id => { cfg[id] = document.getElementById('cfg-' + id).value.trim(); });
       localStorage.setItem(CFG_KEY, JSON.stringify(cfg));
       localStorage.removeItem('robbenAlerts');
+      localStorage.removeItem('robbenLive');
       closeSettings();
-      loadAlerts(true);
+      loadLive(true); loadAlerts(true);
     }
-    async function copySetupLink() {
-      const code = encodeURIComponent(btoa(unescape(encodeURIComponent(JSON.stringify(cfg)))));
+    async function copySetupLink(full) {
+      const data = Object.assign({}, cfg);
+      if (!full) data.report = '';   // 員工用：不帶業績匯報網址 → 員工手機不會顯示營業額
+      const code = encodeURIComponent(btoa(unescape(encodeURIComponent(JSON.stringify(data)))));
       const link = location.origin + location.pathname + '#setup=' + code;
       try { await navigator.clipboard.writeText(link); alert('✅ 已複製設定連結\n\n用 LINE 私訊傳給店裡手機，用 Safari／Chrome 打開一次就完成設定。\n⚠️ 連結含有系統網址與密碼，請勿貼到群組或公開地方。'); }
       catch (e) { prompt('請長按複製這個設定連結：', link); }
     }
 
     // ===== 啟動 =====
-    if (!cfg.inv && !cfg.cost && !cfg.order) {
+    if (!cfg.inv && !cfg.cost && !cfg.order && !cfg.report) {
       document.getElementById('alerts').innerHTML = '<div class="welcome"><div class="ic">👋</div><p>歡迎使用羅本家工作台<br>請先按右上角 ⚙️ 完成設定</p></div>';
-    } else loadAlerts();
-    document.addEventListener('visibilitychange', () => { if (!document.hidden) loadAlerts(); });
+    } else { loadLive(); loadAlerts(); }
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) { loadLive(); loadAlerts(); } });
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
   </script>
 </body>
