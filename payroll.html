@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#8B4513">
+<title>薪資計算｜羅本家工作台</title>
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{--brown:#8B4513;--brown-d:#5E2E0C;--cream:#FDF5E6;--paper:#FFFDF8;--line:#E8D9C0;--ink:#2B1B0E;--mute:#8A7560;--warn:#B3401A;--warn-bg:#FBE9DF;--ok:#3F6B2A;
+  --font:"PingFang TC","Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--cream);color:var(--ink);font-family:var(--font);-webkit-text-size-adjust:100%}
+body{padding:env(safe-area-inset-top,0) 0 calc(env(safe-area-inset-bottom,0) + 24px)}
+header{position:sticky;top:0;z-index:5;background:var(--brown);color:var(--cream);display:flex;align-items:center;gap:8px;padding:calc(env(safe-area-inset-top,0) + 10px) 12px 10px;margin-top:calc(-1 * env(safe-area-inset-top,0))}
+header a,header button{color:var(--cream);text-decoration:none;background:none;border:0;font:inherit;font-size:15px;padding:6px 8px;border-radius:8px;cursor:pointer}
+header h1{flex:1;margin:0;font-size:18px;font-weight:700;letter-spacing:.04em}
+main{max-width:640px;margin:0 auto;padding:16px}
+button{font-family:inherit}
+:focus-visible{outline:3px solid #E0A458;outline-offset:2px}
+.drop{display:block;border:2px dashed var(--brown);border-radius:16px;background:var(--paper);padding:28px 16px;text-align:center;cursor:pointer}
+.drop strong{display:block;font-size:18px;color:var(--brown)}
+.drop span{display:block;margin-top:6px;color:var(--mute);font-size:14px}
+.drop.small{padding:12px;border-width:1.5px}
+.drop.small strong{font-size:15px}
+[hidden]{display:none!important}
+.total{margin:18px 0 8px;padding:18px;background:var(--brown);color:var(--cream);border-radius:16px}
+.total .m{font-size:14px;opacity:.85}
+.total .n{font-size:38px;font-weight:800;font-variant-numeric:tabular-nums;margin:2px 0 10px}
+.total .split{display:flex;gap:16px;font-size:14px;border-top:1px solid rgba(253,245,230,.3);padding-top:10px}
+.total .split b{display:block;font-size:18px;font-variant-numeric:tabular-nums}
+h2{font-size:16px;margin:26px 0 8px;color:var(--brown-d);display:flex;justify-content:space-between;align-items:baseline}
+h2 small{font-weight:400;color:var(--mute);font-size:13px}
+.notes{list-style:none;margin:0;padding:0}
+.notes li{padding:10px 12px;border-radius:10px;margin-bottom:6px;font-size:14px;line-height:1.5;background:var(--paper);border-left:4px solid var(--line)}
+.notes li.warn{background:var(--warn-bg);border-left-color:var(--warn)}
+.person{background:var(--paper);border:1px solid var(--line);border-radius:14px;margin-bottom:10px;overflow:hidden}
+.person summary{list-style:none;display:flex;align-items:center;gap:10px;padding:14px;cursor:pointer}
+.person summary::-webkit-details-marker{display:none}
+.person .who{flex:1}
+.person .who b{font-size:17px}
+.person .who div{font-size:13px;color:var(--mute);margin-top:2px}
+.person .amt{font-size:20px;font-weight:800;font-variant-numeric:tabular-nums;color:var(--brown-d)}
+.person .amt::after{content:"▾";font-size:12px;color:var(--mute);margin-left:6px}
+.person[open] .amt::after{content:"▴"}
+.tag{display:inline-block;font-size:11px;padding:1px 6px;border-radius:6px;background:var(--warn-bg);color:var(--warn);margin-left:6px;vertical-align:2px}
+.days{border-top:1px solid var(--line)}
+.day{display:flex;align-items:center;gap:8px;padding:9px 14px;border-bottom:1px solid #F3EADB;font-size:14px}
+.day:last-child{border-bottom:0}
+.day .d{width:62px;font-variant-numeric:tabular-nums;color:var(--mute)}
+.day .t{flex:1;font-variant-numeric:tabular-nums}
+.day.flag{background:#FFF6EF}
+.day .h{font-variant-numeric:tabular-nums;font-weight:700;min-width:44px;text-align:right}
+.chip{border:1.5px solid var(--line);background:#fff;color:var(--mute);border-radius:999px;padding:4px 10px;font-size:13px;cursor:pointer}
+.chip.on{background:var(--brown);border-color:var(--brown);color:var(--cream)}
+.chip.changed{box-shadow:0 0 0 2px #E0A458}
+.more{display:block;width:100%;border:0;border-top:1px solid var(--line);background:none;color:var(--brown);padding:10px;font-size:14px;cursor:pointer}
+.actions{display:flex;gap:10px;margin-top:22px}
+.btn{flex:1;border:0;border-radius:12px;padding:14px;font-size:15px;font-weight:700;cursor:pointer;background:var(--brown);color:var(--cream)}
+.btn.ghost{background:var(--paper);color:var(--brown);border:1.5px solid var(--brown)}
+.rule{font-size:13px;color:var(--mute);line-height:1.7;margin-top:18px}
+dialog{border:0;border-radius:18px;padding:0;width:min(520px,94vw);background:var(--paper);color:var(--ink)}
+dialog::backdrop{background:rgba(43,27,14,.45)}
+.dlg{padding:18px}
+.dlg h3{margin:0 0 12px;color:var(--brown-d)}
+.field{margin-bottom:12px}
+.field label{display:block;font-size:13px;color:var(--mute);margin-bottom:4px}
+.field input,.field select{width:100%;font:inherit;font-size:16px;padding:9px 10px;border:1.5px solid var(--line);border-radius:10px;background:#fff;color:var(--ink)}
+.row2{display:flex;gap:10px}.row2 .field{flex:1}
+.toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0) + 24px);transform:translateX(-50%);background:var(--ink);color:var(--cream);padding:10px 18px;border-radius:999px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.show{opacity:1}
+.err{color:var(--warn);margin-top:10px;font-size:14px}
+@media (prefers-reduced-motion:reduce){.toast{transition:none}}
+</style>
+</head>
+<body>
+<header>
+  <a href="./" aria-label="回工作台">‹ 工作台</a>
+  <h1>薪資計算</h1>
+  <button id="openSet" aria-label="設定">⚙️</button>
+</header>
+<main>
+  <label class="drop" id="drop">
+    <input type="file" id="file" accept=".csv,text/csv" hidden>
+    <strong>選擇打卡 CSV</strong>
+    <span>檔案只在這支手機上計算，不會上傳</span>
+  </label>
+  <div class="err" id="err" role="alert"></div>
+  <div id="result"></div>
+  <div class="rule" id="rule"></div>
+</main>
+
+<dialog id="set"><form method="dialog" class="dlg" id="setForm">
+  <h3>計算規則</h3>
+  <div class="field"><label>時薪（元）</label><input name="wage" type="number" inputmode="numeric" min="0"></div>
+  <div class="field"><label>正職員工（用逗號分開）</label><input name="fullTime"></div>
+  <div class="field"><label>PT 員工</label><input name="partTime"></div>
+  <div class="field"><label>不計薪（例如老闆本人）</label><input name="skip"></div>
+  <div class="row2">
+    <div class="field"><label>上班打卡不晚於此時間＝早班</label><input name="earlyCutoff" type="time"></div>
+    <div class="field"><label>早班加給（小時）</label><input name="earlyHours" type="number" step="0.25" min="0"></div>
+  </div>
+  <div class="row2">
+    <div class="field"><label>下班打卡晚於此時間＝晚退</label><input name="lateAfter" type="time"></div>
+    <div class="field"><label>晚退加給（小時）</label><input name="lateHours" type="number" step="0.25" min="0"></div>
+  </div>
+  <div class="field"><label>PT 時數取整</label>
+    <select name="ptRound">
+      <option value="half">未滿15分捨去；15–44分算半小時；45分以上算一小時</option>
+      <option value="half15">未滿15分捨去；15分以上都算半小時</option>
+    </select></div>
+  <div class="actions"><button class="btn ghost" value="cancel" formnovalidate>取消</button><button class="btn" value="save" id="saveSet">儲存並重算</button></div>
+</form></dialog>
+<div class="toast" id="toast"></div>
+
+<script>
+// ===== 計算核心（純函式，不碰畫面）=====
+function parseCSV(text){
+  text = text.replace(/^\uFEFF/, '');
+  const rows=[]; let row=[], f='', q=false;
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(q){ if(c==='"'){ if(text[i+1]==='"'){f+='"';i++;} else q=false; } else f+=c; }
+    else if(c==='"') q=true;
+    else if(c===','){ row.push(f); f=''; }
+    else if(c==='\n'||c==='\r'){ if(c==='\r'&&text[i+1]==='\n') i++; row.push(f); f=''; if(row.some(x=>x.trim()!=='')) rows.push(row); row=[]; }
+    else f+=c;
+  }
+  row.push(f); if(row.some(x=>x.trim()!=='')) rows.push(row);
+  return rows;
+}
+const toMin = s => { const m=/(\d{1,2}):(\d{2})/.exec(s||''); return m? (+m[1])*60+(+m[2]) : null; };
+const fmtMin = m => `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
+const fmtDur = m => `${Math.floor(m/60)}h${String(m%60).padStart(2,'0')}m`;
+function parseDur(s){
+  if(!s) return null;
+  const h=/(\d+)\s*小時/.exec(s), m=/(\d+)\s*分/.exec(s);
+  if(!h && !m) return null;
+  return (h?+h[1]:0)*60 + (m?+m[1]:0);
+}
+// 讀進打卡紀錄 → 標準化資料列
+function readPunches(text){
+  const rows=parseCSV(text);
+  if(!rows.length) throw new Error('檔案是空的');
+  const head=rows[0].map(s=>s.trim());
+  const idx=k=>head.findIndex(h=>h.includes(k));
+  const iName=idx('姓名'), iDate=idx('日期'), iTime=idx('上班'), iDur=idx('時數'), iStat=idx('狀態');
+  if(iName<0||iDate<0||iTime<0) throw new Error('找不到「員工姓名／打卡日期／上班下班時間」欄位，請確認是打卡系統匯出的 CSV');
+  return rows.slice(1).map((r,n)=>{
+    const [a,b]=(r[iTime]||'').split('~');
+    const start=toMin(a), end=toMin(b);
+    const durCsv = iDur>=0 ? parseDur(r[iDur]) : null;
+    const durCalc = (start!=null&&end!=null) ? end-start : null;
+    return { id:n, name:(r[iName]||'').trim(), date:(r[iDate]||'').trim(), start, end,
+      minutes: durCsv!=null ? durCsv : durCalc,
+      status: iStat>=0 ? (r[iStat]||'').trim() : '' };
+  }).filter(p=>p.name && p.date);
+}
+// PT 時數取整
+function roundPT(min, mode){
+  const h=Math.floor(min/60), r=min%60;
+  if(mode==='half15'){ // 滿15分算半小時，未滿下一個整點都算半小時
+    return h + (r>=15 ? 0.5 : 0);
+  }
+  // 預設：滿15分進位半小時、滿45分進位一小時
+  return h + (r<15 ? 0 : r<45 ? 0.5 : 1);
+}
+// 依身分分類並自動判斷；overrides 由畫面傳入（使用者手動改的勾選）
+function compute(punches, S, overrides={}){
+  const ft=new Set(S.fullTime), pt=new Set(S.partTime), skip=new Set(S.skip);
+  const early=toMin(S.earlyCutoff), late=toMin(S.lateAfter);
+  const out={ft:{}, pt:{}, notes:[], month:''};
+  const dates=punches.map(p=>p.date).sort(); out.month = dates.length ? dates[0].slice(0,7) : '';
+  for(const p of punches){
+    if(skip.has(p.name)) continue;
+    const single = p.start==null || p.end==null || p.start===p.end || !p.minutes;
+    const o=overrides[p.id]||{};
+    if(ft.has(p.name)){
+      const autoEarly = !single && p.start<=early;
+      const autoLate  = !single && p.end>late;
+      const rec={...p, single, autoEarly, autoLate,
+        early: o.early ?? autoEarly, late: o.late ?? autoLate};
+      rec.otHours = (rec.early?S.earlyHours:0) + (rec.late?S.lateHours:0);
+      (out.ft[p.name] ||= []).push(rec);
+      if(single) out.notes.push({id:p.id, level:'warn', text:`${p.name} ${p.date} 只有一筆打卡（${fmtMin(p.start??p.end)}），可能漏打上班卡，請確認是否要給加班`});
+      if(p.status) out.notes.push({id:p.id, level:'info', text:`${p.name} ${p.date} 打卡紀錄被「${p.status}」過（${fmtMin(p.start)}~${fmtMin(p.end)}）`});
+    } else {
+      const known = pt.has(p.name);
+      const include = o.include ?? !single;
+      const hours = single ? 0 : roundPT(p.minutes, S.ptRound);
+      (out.pt[p.name] ||= []).push({...p, single, include, hours, known});
+      if(single) out.notes.push({id:p.id, level:'warn', text:`${p.name} ${p.date} 只有一筆打卡（${fmtMin(p.start??p.end)}），預設不計薪`});
+      if(p.status) out.notes.push({id:p.id, level:'info', text:`${p.name} ${p.date} 打卡紀錄被「${p.status}」過`});
+    }
+  }
+  for(const [n,list] of Object.entries(out.pt)){
+    if(!list[0].known) out.notes.unshift({level:'warn', text:`${n} 不在正職或 PT 名單，暫時以 PT 時薪計算，請到「設定」確認身分`});
+    const byDay={}; list.filter(r=>r.include).forEach(r=>(byDay[r.date] ||= []).push(r));
+    for(const [d,rs] of Object.entries(byDay)) if(rs.length>1)
+      out.notes.push({level:'warn', text:`${n} ${d} 有 ${rs.length} 段打卡，各段分別取整後相加，請確認是否為分段上班`});
+  }
+  const sum={ft:[], pt:[]};
+  for(const [n,list] of Object.entries(out.ft)){
+    const e=list.filter(r=>r.early).length, l=list.filter(r=>r.late).length;
+    const h=e*S.earlyHours + l*S.lateHours;
+    sum.ft.push({name:n, days:list.length, earlyDays:e, lateDays:l, hours:h, pay:Math.round(h*S.wage)});
+  }
+  for(const [n,list] of Object.entries(out.pt)){
+    const inc=list.filter(r=>r.include);
+    const h=inc.reduce((a,r)=>a+r.hours,0), raw=inc.reduce((a,r)=>a+r.minutes,0);
+    sum.pt.push({name:n, days:new Set(inc.map(r=>r.date)).size, rawMin:raw, hours:h, pay:Math.round(h*S.wage), known:list[0].known});
+  }
+  out.sum=sum; return out;
+}
+
+
+
+// ===== 設定 =====
+const DEFAULTS={wage:210, fullTime:['謝宛廷','羅湘','黃少甫'], partTime:['程巧涵'], skip:['羅季安'],
+  earlyCutoff:'09:40', lateAfter:'20:45', earlyHours:0.5, lateHours:0.5, ptRound:'half'};
+const KEY='robben-payroll-settings';
+function loadS(){ try{ return {...DEFAULTS, ...JSON.parse(localStorage.getItem(KEY)||'{}')}; }catch(e){ return {...DEFAULTS}; } }
+function saveS(s){ try{ localStorage.setItem(KEY, JSON.stringify(s)); }catch(e){} }
+let S=loadS(), punches=null, overrides={}, showAll={}, R=null;
+const $=s=>document.querySelector(s);
+const money=n=>'$'+n.toLocaleString('zh-TW');
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const hrs=h=>(Number.isInteger(h)?h:h.toFixed(h*4%2?2:1))+' 小時';
+function toast(t){ const el=$('#toast'); el.textContent=t; el.classList.add('show'); setTimeout(()=>el.classList.remove('show'),1800); }
+
+// ===== 讀檔（UTF-8 不行就改用 Big5）=====
+$('#file').addEventListener('change', async e=>{
+  const f=e.target.files[0]; if(!f) return;
+  $('#err').textContent='';
+  try{
+    const buf=await f.arrayBuffer();
+    let text=new TextDecoder('utf-8').decode(buf);
+    if(text.includes('\uFFFD')) text=new TextDecoder('big5').decode(buf);
+    punches=readPunches(text); overrides={}; showAll={};
+    if(!punches.length) throw new Error('檔案裡沒有打卡資料');
+    render();
+  }catch(er){ $('#err').textContent='讀取失敗：'+er.message; }
+  e.target.value='';
+});
+
+// ===== 畫面 =====
+function render(){
+  R=compute(punches,S,overrides);
+  const ftPay=R.sum.ft.reduce((a,x)=>a+x.pay,0), ptPay=R.sum.pt.reduce((a,x)=>a+x.pay,0);
+  const [y,m]=R.month.split('-');
+  let h=`<div class="total"><div class="m">${y} 年 ${+m} 月應付</div><div class="n">${money(ftPay+ptPay)}</div>
+    <div class="split"><div>PT 薪資<b>${money(ptPay)}</b></div><div>正職加班費<b>${money(ftPay)}</b></div></div></div>`;
+  if(R.notes.length){
+    h+=`<h2>需要你確認<small>${R.notes.length} 項</small></h2><ul class="notes">${R.notes.map(n=>`<li class="${n.level}">${esc(n.text)}</li>`).join('')}</ul>`;
+  }
+  // PT
+  h+=`<h2>PT 薪資<small>時薪 ${S.wage}</small></h2>`;
+  if(!R.sum.pt.length) h+=`<p class="rule">這個月沒有 PT 打卡紀錄。</p>`;
+  for(const s of R.sum.pt){
+    const list=R.pt[s.name];
+    h+=`<details class="person"><summary><div class="who"><b>${esc(s.name)}</b>${s.known?'':'<span class="tag">未設定身分</span>'}
+      <div>${s.days} 天・實際 ${fmtDur(s.rawMin)}・計薪 ${hrs(s.hours)}</div></div><div class="amt">${money(s.pay)}</div></summary><div class="days">`;
+    for(const r of list){
+      h+=`<div class="day${r.single?' flag':''}"><span class="d">${r.date.slice(5).replace('-','/')}</span>
+        <span class="t">${r.single?fmtMin(r.start??r.end)+'（單筆）':fmtMin(r.start)+'–'+fmtMin(r.end)+'　'+fmtDur(r.minutes)}</span>
+        <span class="h">${r.include?r.hours+'h':'—'}</span>
+        <button class="chip${r.include?' on':''}${overrides[r.id]?.include!==undefined?' changed':''}" data-id="${r.id}" data-k="include">${r.include?'計入':'不計'}</button></div>`;
+    }
+    h+=`</div></details>`;
+  }
+  // 正職
+  h+=`<h2>正職加班費<small>點日期旁的按鈕可以手動調整</small></h2>`;
+  for(const s of R.sum.ft){
+    const list=R.ft[s.name], all=showAll[s.name];
+    const shown=all?list:list.filter(r=>r.early||r.late||r.single||r.status||overrides[r.id]);
+    h+=`<details class="person"${all?' open':''}><summary><div class="who"><b>${esc(s.name)}</b>
+      <div>出勤 ${s.days} 天・早班 ${s.earlyDays} 次・晚退 ${s.lateDays} 次・${hrs(s.hours)}</div></div><div class="amt">${money(s.pay)}</div></summary><div class="days">`;
+    if(!shown.length) h+=`<div class="day"><span class="t" style="color:var(--mute)">這個月沒有加班</span></div>`;
+    for(const r of shown){
+      const o=overrides[r.id]||{};
+      h+=`<div class="day${r.single||r.status?' flag':''}"><span class="d">${r.date.slice(5).replace('-','/')}</span>
+        <span class="t">${r.single?fmtMin(r.start??r.end)+'（單筆）':fmtMin(r.start)+'–'+fmtMin(r.end)}${r.status?'<span class="tag">'+esc(r.status)+'</span>':''}</span>
+        <button class="chip${r.early?' on':''}${o.early!==undefined?' changed':''}" data-id="${r.id}" data-k="early">早班</button>
+        <button class="chip${r.late?' on':''}${o.late!==undefined?' changed':''}" data-id="${r.id}" data-k="late">晚退</button></div>`;
+    }
+    h+=`<button class="more" data-all="${esc(s.name)}">${all?'只看有加班的日子':'顯示全部 '+list.length+' 天'}</button></div></details>`;
+  }
+  h+=`<div class="actions"><button class="btn ghost" id="copy">複製摘要</button><button class="btn" id="xlsx">匯出 Excel</button></div>
+    <label class="drop small" style="margin-top:12px"><input type="file" accept=".csv,text/csv" hidden onchange="document.getElementById('file').files=this.files;document.getElementById('file').dispatchEvent(new Event('change'))"><strong>換一個月份的檔案</strong></label>`;
+  // 保留展開狀態
+  const open=[...document.querySelectorAll('details.person[open] b')].map(b=>b.textContent);
+  $('#result').innerHTML=h; $('#drop').hidden=true;
+  document.querySelectorAll('details.person').forEach(d=>{ if(open.includes(d.querySelector('b').textContent)) d.open=true; });
+  $('#copy').onclick=copySummary; $('#xlsx').onclick=exportXlsx;
+  renderRule();
+}
+$('#result').addEventListener('click', e=>{
+  const c=e.target.closest('.chip');
+  if(c){ const id=+c.dataset.id, k=c.dataset.k;
+    const rec=[...Object.values(R.ft).flat(),...Object.values(R.pt).flat()].find(r=>r.id===id);
+    const auto = k==='include' ? !rec.single : (k==='early'?rec.autoEarly:rec.autoLate);
+    const next=!rec[k]; overrides[id]={...(overrides[id]||{})};
+    if(next===auto) delete overrides[id][k]; else overrides[id][k]=next;
+    render(); return; }
+  const m=e.target.closest('.more');
+  if(m){ showAll[m.dataset.all]=!showAll[m.dataset.all]; render(); }
+});
+function renderRule(){
+  $('#rule').innerHTML=`目前規則：正職上班打卡在 ${S.earlyCutoff} 以前算早班，加 ${S.earlyHours} 小時；下班打卡晚於 ${S.lateAfter} 算晚退，加 ${S.lateHours} 小時。PT 以當天打卡總時長取整（${S.ptRound==='half'?'15–44 分算半小時，45 分以上算一小時':'滿 15 分算半小時'}）。手動調整過的按鈕會有橘色外框。`;
+}
+
+// ===== 輸出 =====
+function copySummary(){
+  const [y,m]=R.month.split('-');
+  const L=[`${y}年${+m}月 薪資摘要（時薪 ${S.wage}）`,'','【PT 薪資】'];
+  R.sum.pt.forEach(s=>L.push(`${s.name}：${s.hours} 小時 ${money(s.pay)}`));
+  L.push('','【正職加班費】');
+  R.sum.ft.forEach(s=>L.push(`${s.name}：早班 ${s.earlyDays} 次、晚退 ${s.lateDays} 次，${s.hours} 小時 ${money(s.pay)}`));
+  const t=R.sum.pt.concat(R.sum.ft).reduce((a,x)=>a+x.pay,0);
+  L.push('',`合計 ${money(t)}`);
+  const txt=L.join('\n');
+  (navigator.clipboard?navigator.clipboard.writeText(txt):Promise.reject()).then(()=>toast('已複製摘要'))
+    .catch(()=>{ const ta=document.createElement('textarea'); ta.value=txt; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); toast('已複製摘要'); });
+}
+function exportXlsx(){
+  if(typeof XLSX==='undefined'){ toast('Excel 元件沒載入，請連上網路再試'); return; }
+  const wb=XLSX.utils.book_new();
+  const sum=[['身分','姓名','天數','早班次數','晚退次數','計薪時數','金額']];
+  R.sum.pt.forEach(s=>sum.push(['PT',s.name,s.days,'','',s.hours,s.pay]));
+  R.sum.ft.forEach(s=>sum.push(['正職',s.name,s.days,s.earlyDays,s.lateDays,s.hours,s.pay]));
+  sum.push(['','合計','','','','',R.sum.pt.concat(R.sum.ft).reduce((a,x)=>a+x.pay,0)]);
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(sum),'薪資總表');
+  const pt=[['姓名','日期','上班','下班','實際時長(分)','計薪時數','是否計入','金額']];
+  Object.values(R.pt).flat().forEach(r=>pt.push([r.name,r.date,fmtMin(r.start??r.end),fmtMin(r.end??r.start),r.minutes||0,r.hours,r.include?'計入':'不計',r.include?Math.round(r.hours*S.wage):0]));
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(pt),'PT明細');
+  const ft=[['姓名','日期','上班','下班','早班','晚退','加班時數','金額','備註']];
+  Object.values(R.ft).flat().forEach(r=>ft.push([r.name,r.date,fmtMin(r.start??r.end),fmtMin(r.end??r.start),r.early?'✓':'',r.late?'✓':'',r.otHours,Math.round(r.otHours*S.wage),[r.single?'單筆打卡':'',r.status,overrides[r.id]?'手動調整':''].filter(Boolean).join('、')]));
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(ft),'正職加班明細');
+  XLSX.writeFile(wb,`羅本家薪資_${R.month}.xlsx`);
+}
+
+// ===== 設定視窗 =====
+const F=$('#setForm');
+$('#openSet').onclick=()=>{
+  for(const k of Object.keys(DEFAULTS)){ const v=S[k]; F.elements[k].value=Array.isArray(v)?v.join(', '):v; }
+  $('#set').showModal();
+};
+$('#set').addEventListener('close',()=>{
+  if($('#set').returnValue!=='save') return;
+  const list=v=>v.split(/[,，、\s]+/).map(x=>x.trim()).filter(Boolean);
+  S={wage:+F.elements.wage.value||0, fullTime:list(F.elements.fullTime.value), partTime:list(F.elements.partTime.value), skip:list(F.elements.skip.value),
+     earlyCutoff:F.elements.earlyCutoff.value||DEFAULTS.earlyCutoff, lateAfter:F.elements.lateAfter.value||DEFAULTS.lateAfter,
+     earlyHours:+F.elements.earlyHours.value, lateHours:+F.elements.lateHours.value, ptRound:F.elements.ptRound.value};
+  saveS(S); if(punches){ overrides={}; render(); } else renderRule(); toast('已儲存');
+});
+renderRule();
+</script>
+</body>
+</html>

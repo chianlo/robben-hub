@@ -47,6 +47,7 @@
     .tile .ic { font-size: 34px; }
     .tile:active { transform: scale(.96); }
     .tile:disabled { opacity: .6; }
+    .tile[hidden] { display: none; }
     .tile .st { font-size: 12px; font-weight: normal; color: #999; min-height: 15px; }
 
     /* 提示訊息 */
@@ -111,6 +112,7 @@
       <button class="tile" onclick="openTool('cost')"><span class="ic">📷</span>進貨登記</button>
       <button class="tile" onclick="openTool('order')"><span class="ic">🛒</span>叫貨系統</button>
       <button class="tile" id="reportBtn" onclick="sendReport()"><span class="ic">📊</span>業績匯報<span class="st" id="reportSt">傳送到 Discord</span></button>
+      <button class="tile" id="payrollBtn" hidden onclick="location.href='payroll.html'"><span class="ic">🧾</span>薪資計算<span class="st">PT 薪資・正職加班</span></button>
     </div>
 
     <div class="card">
@@ -266,6 +268,7 @@
     }
     async function loadLive(force) {
       const card = document.getElementById('liveCard');
+      document.getElementById('payrollBtn').hidden = !cfg.report;   // 薪資計算只給有業績網址的手機（老闆）
       if (!cfg.report) { card.classList.remove('on'); return; }   // 沒設定業績匯報網址的手機（員工）不顯示
       card.classList.add('on');
 
