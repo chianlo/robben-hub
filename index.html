@@ -31,10 +31,12 @@
     .live { display: none; }
     .live.on { display: block; }
     .live .big { font-size: 34px; font-weight: bold; color: var(--primary); font-variant-numeric: tabular-nums; }
-    .live .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px; }
+    .live .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 10px; }
     .live .grid div { background: #FAF3E8; border-radius: 8px; padding: 8px; text-align: center; }
     .live .grid span { display: block; font-size: 12px; color: #888; }
     .live .grid b { font-size: 16px; }
+    .live .grid .pending { background: #FFF3E0; }
+    .live .grid .pending b { color: var(--warn); }
     .bar { height: 8px; background: #f0e9df; border-radius: 4px; overflow: hidden; margin-top: 10px; }
     .bar i { display: block; height: 100%; background: var(--primary); border-radius: 4px; }
 
@@ -255,6 +257,7 @@
           <div><span>來客數</span><b>${fmt(d.persons)}</b></div>
           <div><span>客單價</span><b>${fmt(d.avg)}</b></div>
           <div><span>訂單數</span><b>${fmt(d.orders)}</b></div>
+          <div class="${d.unfinished > 0 ? 'pending' : ''}"><span>未結金額</span><b>${d.unfinished === null || d.unfinished === undefined ? '-' : 'NT$' + fmt(d.unfinished)}</b></div>
         </div>
         ${d.monthTotal !== null && d.monthTotal !== undefined ? `
           <div style="margin-top:12px;font-size:14px;">本月累計 <b>NT$${fmt(d.monthTotal)}</b>／目標 ${fmt(d.target)}（${pct}%）</div>

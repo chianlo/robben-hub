@@ -1,5 +1,5 @@
 // 羅本家工作台 Service Worker：先抓網路最新版，離線時用快取
-const CACHE = 'robben-hub-v6';
+const CACHE = 'robben-hub-v7';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './apple-touch-icon.png'];
 
 self.addEventListener('install', e => {
