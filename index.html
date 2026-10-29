@@ -113,6 +113,7 @@
       <button class="tile" onclick="openTool('order')"><span class="ic">🛒</span>叫貨系統</button>
       <button class="tile" id="reportBtn" onclick="sendReport()"><span class="ic">📊</span>業績匯報<span class="st" id="reportSt">傳送到 Discord</span></button>
       <button class="tile" id="payrollBtn" hidden onclick="location.href='payroll.html'"><span class="ic">🧾</span>薪資計算<span class="st">PT 薪資・正職加班</span></button>
+      <button class="tile" id="analysisBtn" hidden onclick="openAnalysis()"><span class="ic">📈</span>營運分析<span class="st">報表・AI 解讀</span></button>
     </div>
 
     <div class="card">
@@ -145,7 +146,8 @@
       inv:   { title: '庫存盤點', hint: '庫存盤點 Apps Script 的 /exec 網址' },
       cost:  { title: '進貨登記', hint: '進貨／成本 Apps Script 的 /exec 網址（含 ?key=密碼）' },
       order: { title: '叫貨系統', hint: '叫貨系統 GitHub Pages 網址' },
-      report:{ title: '業績匯報', hint: '業績匯報 Apps Script 的 /exec 網址（含 ?key=密碼）' }
+      report:{ title: '業績匯報', hint: '業績匯報 Apps Script 的 /exec 網址（含 ?key=密碼）' },
+      analysis:{ title: '營運分析', hint: '營運分析 Apps Script「Google 帳號登入」那個部署的 /exec 網址（老闆專用）' }
     };
     const CFG_KEY = 'robbenHubConfig';
     let cfg = {};
@@ -243,6 +245,13 @@
     }
     function openExternal() { if (currentUrl) location.href = currentUrl; }
 
+    // ===== 營運分析：需要 Google 登入，用瀏覽器開（內嵌視窗在 iPhone 常卡在登入）=====
+    function openAnalysis() {
+      if (!cfg.analysis) { alert('還沒設定「營運分析」的網址，請按右上角 ⚙️ 設定'); return; }
+      const w = window.open(cfg.analysis, '_blank');
+      if (!w) location.href = cfg.analysis;
+    }
+
     // ===== 即時營業額 =====
     let liveFetching = false, liveLastTry = 0;
     function agoText(t) {
@@ -269,6 +278,7 @@
     async function loadLive(force) {
       const card = document.getElementById('liveCard');
       document.getElementById('payrollBtn').hidden = !cfg.report;   // 薪資計算只給有業績網址的手機（老闆）
+      document.getElementById('analysisBtn').hidden = !(cfg.report && cfg.analysis);
       if (!cfg.report) { card.classList.remove('on'); return; }   // 沒設定業績匯報網址的手機（員工）不顯示
       card.classList.add('on');
 
@@ -358,7 +368,7 @@
     }
     async function copySetupLink(full) {
       const data = Object.assign({}, cfg);
-      if (!full) data.report = '';   // 員工用：不帶業績匯報網址 → 員工手機不會顯示營業額
+      if (!full) { data.report = ''; data.analysis = ''; }   // 員工用：不帶業績與營運分析網址 → 員工手機不會顯示營業額
       const code = encodeURIComponent(btoa(unescape(encodeURIComponent(JSON.stringify(data)))));
       const link = location.origin + location.pathname + '#setup=' + code;
       try { await navigator.clipboard.writeText(link); alert('✅ 已複製設定連結\n\n用 LINE 私訊傳給店裡手機，用 Safari／Chrome 打開一次就完成設定。\n⚠️ 連結含有系統網址與密碼，請勿貼到群組或公開地方。'); }
